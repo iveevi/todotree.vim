@@ -1,3 +1,47 @@
+-- Each language extension and the comment prefixes it allows
+exts = {
+	c = {'//', '/*', '*/'},
+	cpp = {'//', '/*', '*/'},
+	hpp = {'//', '/*', '*/'},
+	cs = {'//', '/*', '*/'},
+	css = {'//', '/*', '*/'},
+	htm = {'//', '<!--', '-->'},
+	html = {'//', '<!--', '-->'},
+	html = {'//', '<!--', '-->'},
+	ini = {'#', '//', '/*', '*/'},
+	js = {'//', '/*', '*/'},
+	json = {'//', '/*', '*/'},
+	jsx = {'//', '/*', '*/'},
+	less = {'//', '/*', '*/'},
+	lua = {'--'},
+	php = {'//', '/*', '*/'},
+	pl = {'#', '//', '/*', '*/'},
+	properties = {'#', '//', '/*', '*/'},
+	py = {'#', '//', '#', '/*', '*/'},
+	rb = {'#', '//', '/*', '*/'},
+	sass = {'//', '/*', '*/'},
+	scss = {'//', '/*', '*/'},
+	sh = {'#', '//', '/*', '*/'},
+	shtml = {'//', '<!--', '-->'},
+	sql = {'--'},
+	styl = {'//', '/*', '*/'},
+	ts = {'//', '/*', '*/'},
+	tsx = {'//', '/*', '*/'},
+	vb = {'//', '/*', '*/'},
+	vbs = {'//', '/*', '*/'},
+	vbscript = {'//', '/*', '*/'},
+	vim = {"\""},
+	xhtml = {'//', '<!--', '-->'},
+	xml = {'//', '<!--', '-->'},
+	xml = {'//', '<!--', '-->'},
+	xquery = {'//', '/*', '*/'},
+	xsd = {'//', '<!--', '-->'},
+	xsl = {'//', '<!--', '-->'},
+	xslt = {'//', '<!--', '-->'},
+	yaml = {'#', '//', '/*', '*/'},
+	yml = {'#', '//', '/*', '*/'},
+}
+
 function sorted_pairs(t, order)
 	-- collect the keys
 	local keys = {}
@@ -24,16 +68,13 @@ end
 
 
 function read_todos(file)
-	-- Each language extension and the comment prefixes it allows
-	exts = {
-		py = {'#'},
-		lua = {'--'},
-		js = {'//'},
-		cpp = {'//'},
-		c = {'//'},
-		java = {'//'}
-	}
-	
+	-- Check that the file extension is supported
+	local ext = string.match(file, "%.([^%.]+)$")
+	if not exts[ext] then
+		print("Unsupported file extension: " .. ext)
+		return
+	end
+
 	-- Read from file
 	local content = io.lines(file)
 
