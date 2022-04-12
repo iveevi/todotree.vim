@@ -6,23 +6,109 @@ let g:orig_win = 0
 
 " The user pressed enter in the todo list
 function TodoTreeEnter()
+	let line = getline(line('.'))
+
 	" Check if the first 4 characters is "File"
-	let four = getline(line('.'))[0:3]
+	let four = line[0:3]
 	if match(four, 'File') == 0
 		echo "File is not supported"
 		return
 	endif
 
+	" Check if the line is the file line
+	" (in which case, we go up a directory)
+	if match(line, g:todo_file) == 0
+		echo "Requesting upper directory"
+
+		" Temporarily allow modifications
+		set modifiable
+
+lua << EOF
+		require('todos')
+
+		function is_dir(path)
+			if os.execute('test -d ' .. path) == 0 then
+				return true
+			else
+				return false
+			end
+		end
+
+		file = vim.g.todo_path
+		dir = file:match('^(.*)[/\\][^/\\]*$')
+
+		-- List all files in the directory
+		files = vim.fn.glob(dir .. '/*')
+
+		file_list = {}
+		for w in files:gmatch("%S+") do
+			-- Check if the file is a directory
+			if is_dir(w) == false then
+				table.insert(file_list, w)
+			end
+		end
+		
+		-- Display the directory
+		vim.api.nvim_buf_set_lines(0, 0, -1, false, {'Directory: ' .. dir, ''})
+
+		-- Max length of file
+		local max_len = 0
+
+		for i, v in ipairs(file_list) do
+			local file = v:match('^.*[/\\](.*)$')
+			if file:len() > max_len then
+				max_len = file:len()
+			end
+		end
+
+		-- Display the number of TODOs in each file
+		for i, v in ipairs(file_list) do
+			local count = count_todos(v)
+			
+			-- Get the file name and pad it out
+			local file = v:match('^.*[/\\]([^/\\]*)$')
+			local pad = (max_len + 3) - file:len()
+			local pad_str = ''
+			for i = 1, pad do
+				pad_str = pad_str .. ' '
+			end
+			file = file .. pad_str
+
+			str = ''
+			if count >= 0 then
+				todo = 'TODOs'
+				if count == 1 then
+					todo = 'TODO'
+				end
+
+				str = string.format('%s %d %s', file, count, todo)
+			else
+				local ext = v:match('^.*%.([^%.]*)$')
+				str = string.format('%s File extension *.%s not supported', file, ext)
+			end
+			
+			-- Append to the buffer
+			vim.api.nvim_buf_set_lines(0, -1, -1, false, {str})
+		end
+EOF
+
+		" Revert modifications
+		set nomodifiable
+
+		return
+	endif
+
 	" Extract line number
-	let line = split(getline(line('.')), ':')[0]
+	let number = split(line, ':')[0]
 
 	" Switch to the original window
 	call win_gotoid(g:orig_win)
 
 	" Go to the line
-	exec ': ' . line
+	exec ': ' . number
 endfunction
 
+" TODO: alternative for git projects
 function! TodoTree()
 	if win_gotoid(g:todo_win)
 		hide
@@ -63,42 +149,11 @@ function! TodoTree()
 		map <CR> <ESC> :call TodoTreeEnter()<CR>
 
 lua << EOF
-require('todos')
-
-file = vim.g.todo_path
-
-list = read_todos(file)
-
--- Display the file name
-vim.api.nvim_buf_set_lines(0, 0, -1, false, {
-	vim.g.todo_file .. ' (' .. file .. ')', ''
-})
-
--- If return is nill, then file extension is not supported
-if list == nil then
-	-- Add the line to the buffer
-	ext = string.match(file, '%.([^%.]+)$')
-	msg = 'File extension (*.' .. ext .. ') is not supported'
-	vim.api.nvim_buf_set_lines(0, -1, -1, false, {msg})
-	return
-end
-
--- Display the TODOs
-items = 0
-for k, v in sorted_pairs(list) do
-	-- Format the line number
-	lstr = string.format('%+4s', k)
-	str = lstr .. ': ' .. v
-
-	-- Add the line to the buffer
-	vim.api.nvim_buf_set_lines(0, -1, -1, false, {str})
-
-	-- Increment the number of items
-	items = items + 1
-end
+		require('todos')
+		show_file_todos(vim.g.todo_path)
 EOF
+
 		" Turn off editing
-		" set noma
 		setlocal nomodifiable
 
 		let g:todo_win = win_getid()
